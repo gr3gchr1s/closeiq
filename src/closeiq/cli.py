@@ -8,6 +8,7 @@ from .accounting import (
     load_journal_lines,
     validate_journal_balance,
 )
+from .close_review import build_close_review
 from .reconciliation import load_bank_transactions, reconcile
 
 
@@ -20,6 +21,9 @@ def main() -> None:
 
     duplicates = commands.add_parser("duplicates")
     duplicates.add_argument("journal_file")
+    close_review_command = commands.add_parser("close-review")
+    close_review_command.add_argument("journal_file")
+    close_review_command.add_argument("bank_file")
 
     reconcile_command = commands.add_parser("reconcile")
     reconcile_command.add_argument("journal_file")
@@ -33,6 +37,14 @@ def main() -> None:
         print(json.dumps(validate_journal_balance(lines), indent=2))
     elif args.command == "duplicates":
         print(json.dumps(find_duplicate_external_references(lines), indent=2))
+    elif args.command == "close-review":
+        bank_transactions = load_bank_transactions(args.bank_file)
+        print(
+            json.dumps(
+                build_close_review(lines, bank_transactions),
+                indent=2,
+            )
+        )
     else:
         bank_transactions = load_bank_transactions(args.bank_file)
         print(json.dumps(reconcile(lines, bank_transactions), indent=2))
