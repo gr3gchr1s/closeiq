@@ -1,0 +1,9 @@
+account_code,account_name,account_type,normal_balance
+1000,Cash,asset,debit
+1100,Accounts Receivable,asset,debit
+2000,Accounts Payable,liability,credit
+3000,Owner's Equity,equity,credit
+4000,Service Revenue,revenue,credit
+6100,Software Expense,expense,debit
+6200,Office Supplies Expense,expense,debit
+6300,Bank Fees Expense,expense,debit
