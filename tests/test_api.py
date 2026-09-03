@@ -100,7 +100,27 @@ class ApiTest(unittest.TestCase):
             result["note"],
             "Reviewed the supporting accounting evidence.",
         )
+    def test_close_summary_endpoint_returns_status_counts(self):
+        response = self.client.get("/close-summary")
 
+        self.assertEqual(response.status_code, 200)
+        summary = response.json()
+
+        self.assertEqual(
+            set(summary),
+            {"open", "reviewed", "resolved", "dismissed", "total"},
+        )
+
+        for status in ("open", "reviewed", "resolved", "dismissed"):
+            self.assertIsInstance(summary[status], int)
+
+        self.assertEqual(
+            summary["total"],
+            summary["open"]
+            + summary["reviewed"]
+            + summary["resolved"]
+            + summary["dismissed"],
+        )
 
 if __name__ == "__main__":
     unittest.main()
