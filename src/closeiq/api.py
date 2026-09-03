@@ -62,6 +62,31 @@ def list_open_exceptions() -> list[dict[str, Any]]:
         for row in rows
     ]
 
+@app.get("/close-summary")
+def get_close_summary() -> dict[str, int]:
+    summary = {
+        "open": 0,
+        "reviewed": 0,
+        "resolved": 0,
+        "dismissed": 0,
+    }
+
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT status, COUNT(*)
+                FROM close_exceptions
+                GROUP BY status
+                """
+            )
+            rows = cursor.fetchall()
+
+    for status, count in rows:
+        summary[status] = count
+
+    summary["total"] = sum(summary.values())
+    return summary
 
 @app.post("/exceptions/{exception_id}/decisions", status_code=201)
 def create_exception_decision(
