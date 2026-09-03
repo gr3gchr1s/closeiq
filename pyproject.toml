@@ -1,0 +1,8 @@
+[project]
+name = "closeiq"
+version = "0.1.0"
+description = "Accounting close and reconciliation portfolio project"
+requires-python = ">=3.11"
+
+[tool.unittest]
+start-directory = "tests"
