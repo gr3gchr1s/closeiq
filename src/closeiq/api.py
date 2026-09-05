@@ -1,8 +1,11 @@
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any, Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
+from .close_run import run_close
 from .database import get_connection
 
 
@@ -193,6 +196,53 @@ def create_exception_decision(
         "decided_at": row[5],
         "status": exception_status,
     }
+
+
+@app.post("/close-runs", status_code=201)
+async def create_close_run_from_upload(
+    close_period: str = Form(...),
+    journal_file: UploadFile = File(...),
+    bank_file: UploadFile = File(...),
+) -> dict[str, Any]:
+    if not journal_file.filename or not bank_file.filename:
+        raise HTTPException(
+            status_code=422,
+            detail="Both uploaded files must have filenames",
+        )
+
+    if (
+        Path(journal_file.filename).suffix.lower() != ".csv"
+        or Path(bank_file.filename).suffix.lower() != ".csv"
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="Journal and bank uploads must be CSV files",
+        )
+
+    try:
+        with TemporaryDirectory() as temporary_directory:
+            temporary_path = Path(temporary_directory)
+            journal_path = temporary_path / "journal_entries.csv"
+            bank_path = temporary_path / "bank_transactions.csv"
+
+            journal_path.write_bytes(await journal_file.read())
+            bank_path.write_bytes(await bank_file.read())
+
+            return run_close(
+                journal_path,
+                bank_path,
+                close_period=close_period,
+                journal_source=journal_file.filename,
+                bank_source=bank_file.filename,
+            )
+    except ValueError as error:
+        raise HTTPException(
+            status_code=422,
+            detail=str(error),
+        ) from error
+    finally:
+        await journal_file.close()
+        await bank_file.close()
 
 
 @app.get("/close-runs")
