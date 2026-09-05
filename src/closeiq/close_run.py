@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -13,10 +14,20 @@ from .journal_import import import_journal_entries
 from .reconciliation import load_bank_transactions
 
 
+CLOSE_PERIOD_PATTERN = r"\d{4}-(0[1-9]|1[0-2])"
+
+
 def run_close(
     journal_file: str | Path,
     bank_file: str | Path,
+    *,
+    close_period: str,
 ) -> dict[str, Any]:
+    if not re.fullmatch(CLOSE_PERIOD_PATTERN, close_period):
+        raise ValueError(
+            "close_period must use YYYY-MM format, such as 2026-08"
+        )
+
     imported_journal_line_count = import_journal_entries(journal_file)
     imported_bank_transaction_count = import_bank_transactions(bank_file)
 
@@ -35,16 +46,18 @@ def run_close(
                 """
                 INSERT INTO close_runs (
                     close_run_id,
+                    close_period,
                     journal_source,
                     bank_source,
                     imported_journal_line_count,
                     imported_bank_transaction_count,
                     total_exception_count
                 )
-                VALUES (%s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
                     close_run_id,
+                    close_period,
                     str(journal_file),
                     str(bank_file),
                     imported_journal_line_count,
@@ -55,6 +68,7 @@ def run_close(
 
     return {
         "close_run_id": close_run_id,
+        "close_period": close_period,
         "imported_journal_line_count": imported_journal_line_count,
         "imported_bank_transaction_count": imported_bank_transaction_count,
         "close_review": close_review,

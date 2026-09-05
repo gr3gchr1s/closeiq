@@ -12,12 +12,14 @@ PROJECT_ROOT = Path(__file__).parents[1]
 
 
 class CloseRunTest(unittest.TestCase):
-    def test_run_close_imports_data_persists_exceptions_and_records_history(self):
+    def test_run_close_records_period_aware_history(self):
         result = run_close(
             PROJECT_ROOT / "data" / "journal_entries.csv",
             PROJECT_ROOT / "data" / "bank_transactions.csv",
+            close_period="2026-08",
         )
 
+        self.assertEqual(result["close_period"], "2026-08")
         self.assertEqual(result["imported_journal_line_count"], 9)
         self.assertEqual(result["imported_bank_transaction_count"], 4)
         self.assertEqual(
@@ -34,6 +36,7 @@ class CloseRunTest(unittest.TestCase):
                 cursor.execute(
                     """
                     SELECT
+                        close_period,
                         imported_journal_line_count,
                         imported_bank_transaction_count,
                         total_exception_count
@@ -45,7 +48,7 @@ class CloseRunTest(unittest.TestCase):
                 close_run = cursor.fetchone()
 
         self.assertEqual(exception_count, 4)
-        self.assertEqual(close_run, (9, 4, 4))
+        self.assertEqual(close_run, ("2026-08", 9, 4, 4))
 
 
 if __name__ == "__main__":
