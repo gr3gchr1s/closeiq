@@ -50,15 +50,17 @@ class ApiTest(unittest.TestCase):
                     """
                     INSERT INTO close_runs (
                         close_run_id,
+                        close_period,
                         journal_source,
                         bank_source,
                         imported_journal_line_count,
                         imported_bank_transaction_count,
                         total_exception_count
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (close_run_id) DO UPDATE
                     SET
+                        close_period = EXCLUDED.close_period,
                         journal_source = EXCLUDED.journal_source,
                         bank_source = EXCLUDED.bank_source,
                         imported_journal_line_count =
@@ -70,6 +72,7 @@ class ApiTest(unittest.TestCase):
                     """,
                     (
                         self.test_close_run_id,
+                        "2026-08",
                         "test-journal.csv",
                         "test-bank.csv",
                         9,
@@ -136,6 +139,7 @@ class ApiTest(unittest.TestCase):
             if run["close_run_id"] == self.test_close_run_id
         )
 
+        self.assertEqual(close_run["close_period"], "2026-08")
         self.assertEqual(close_run["journal_source"], "test-journal.csv")
         self.assertEqual(close_run["bank_source"], "test-bank.csv")
         self.assertEqual(close_run["imported_journal_line_count"], 9)

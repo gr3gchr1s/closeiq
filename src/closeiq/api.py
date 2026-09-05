@@ -199,6 +199,7 @@ def list_close_runs() -> list[dict[str, Any]]:
                 """
                 SELECT
                     close_run_id,
+                    close_period,
                     journal_source,
                     bank_source,
                     imported_journal_line_count,
@@ -206,7 +207,7 @@ def list_close_runs() -> list[dict[str, Any]]:
                     total_exception_count,
                     created_at
                 FROM close_runs
-                ORDER BY created_at DESC, close_run_id DESC
+                ORDER BY close_period DESC, created_at DESC, close_run_id DESC
                 """
             )
             rows = cursor.fetchall()
@@ -214,12 +215,13 @@ def list_close_runs() -> list[dict[str, Any]]:
     return [
         {
             "close_run_id": row[0],
-            "journal_source": row[1],
-            "bank_source": row[2],
-            "imported_journal_line_count": row[3],
-            "imported_bank_transaction_count": row[4],
-            "total_exception_count": row[5],
-            "created_at": row[6],
+            "close_period": row[1],
+            "journal_source": row[2],
+            "bank_source": row[3],
+            "imported_journal_line_count": row[4],
+            "imported_bank_transaction_count": row[5],
+            "total_exception_count": row[6],
+            "created_at": row[7],
         }
         for row in rows
     ]

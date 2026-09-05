@@ -32,6 +32,11 @@ def main() -> None:
     close_review_command.add_argument("bank_file")
 
     run_close_command = commands.add_parser("run-close")
+    run_close_command.add_argument(
+        "--period",
+        required=True,
+        help="Accounting period in YYYY-MM format, such as 2026-08",
+    )
     run_close_command.add_argument("journal_file")
     run_close_command.add_argument("bank_file")
 
@@ -52,7 +57,11 @@ def main() -> None:
     else:
         print(
             json.dumps(
-                run_close(args.journal_file, args.bank_file),
+                run_close(
+                    args.journal_file,
+                    args.bank_file,
+                    close_period=args.period,
+                ),
                 indent=2,
             )
         )

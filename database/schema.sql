@@ -66,6 +66,9 @@ CREATE TABLE exception_decisions (
 
 CREATE TABLE close_runs (
     close_run_id TEXT PRIMARY KEY,
+        close_period TEXT NOT NULL CHECK (
+        close_period ~ '^\d{4}-(0[1-9]|1[0-2])$'
+    ),
     journal_source TEXT NOT NULL,
     bank_source TEXT NOT NULL,
     imported_journal_line_count INTEGER NOT NULL,
@@ -76,6 +79,9 @@ CREATE TABLE close_runs (
 
 CREATE INDEX close_runs_created_at_idx
     ON close_runs(created_at DESC);
+
+CREATE INDEX close_runs_close_period_created_at_idx
+    ON close_runs(close_period, created_at DESC);
 
 CREATE INDEX journal_lines_external_reference_idx
     ON journal_lines(external_reference);
