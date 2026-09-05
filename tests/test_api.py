@@ -14,6 +14,7 @@ class ApiTest(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
         self.test_exception_id = "api-test:decision-workflow"
+        self.test_close_run_id = "api-test:close-run-history"
 
         with get_connection() as connection:
             with connection.cursor() as cursor:
@@ -45,6 +46,38 @@ class ApiTest(unittest.TestCase):
                         "{}",
                     ),
                 )
+                cursor.execute(
+                    """
+                    INSERT INTO close_runs (
+                        close_run_id,
+                        journal_source,
+                        bank_source,
+                        imported_journal_line_count,
+                        imported_bank_transaction_count,
+                        total_exception_count
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (close_run_id) DO UPDATE
+                    SET
+                        journal_source = EXCLUDED.journal_source,
+                        bank_source = EXCLUDED.bank_source,
+                        imported_journal_line_count =
+                            EXCLUDED.imported_journal_line_count,
+                        imported_bank_transaction_count =
+                            EXCLUDED.imported_bank_transaction_count,
+                        total_exception_count =
+                            EXCLUDED.total_exception_count
+                    """,
+                    (
+                        self.test_close_run_id,
+                        "test-journal.csv",
+                        "test-bank.csv",
+                        9,
+                        4,
+                        4,
+                    ),
+                )
+
     def tearDown(self):
         with get_connection() as connection:
             with connection.cursor() as cursor:
@@ -62,6 +95,14 @@ class ApiTest(unittest.TestCase):
                     """,
                     (self.test_exception_id,),
                 )
+                cursor.execute(
+                    """
+                    DELETE FROM close_runs
+                    WHERE close_run_id = %s
+                    """,
+                    (self.test_close_run_id,),
+                )
+
     def test_health_endpoint_returns_ok(self):
         response = self.client.get("/health")
 
@@ -82,6 +123,26 @@ class ApiTest(unittest.TestCase):
             self.assertIn("severity", exception)
             self.assertIn("source_ids", exception)
 
+    def test_close_runs_endpoint_returns_history(self):
+        response = self.client.get("/close-runs")
+
+        self.assertEqual(response.status_code, 200)
+        close_runs = response.json()
+
+        self.assertIsInstance(close_runs, list)
+        close_run = next(
+            run
+            for run in close_runs
+            if run["close_run_id"] == self.test_close_run_id
+        )
+
+        self.assertEqual(close_run["journal_source"], "test-journal.csv")
+        self.assertEqual(close_run["bank_source"], "test-bank.csv")
+        self.assertEqual(close_run["imported_journal_line_count"], 9)
+        self.assertEqual(close_run["imported_bank_transaction_count"], 4)
+        self.assertEqual(close_run["total_exception_count"], 4)
+        self.assertIn("created_at", close_run)
+
     def test_decision_endpoint_acknowledges_exception(self):
         response = self.client.post(
             f"/exceptions/{self.test_exception_id}/decisions",
@@ -100,6 +161,7 @@ class ApiTest(unittest.TestCase):
             result["note"],
             "Reviewed the supporting accounting evidence.",
         )
+
     def test_close_summary_endpoint_returns_status_counts(self):
         response = self.client.get("/close-summary")
 
@@ -121,6 +183,7 @@ class ApiTest(unittest.TestCase):
             + summary["resolved"]
             + summary["dismissed"],
         )
+
     def test_decision_history_endpoint_returns_audit_trail(self):
         create_response = self.client.post(
             f"/exceptions/{self.test_exception_id}/decisions",
@@ -147,5 +210,7 @@ class ApiTest(unittest.TestCase):
             decision["note"],
             "Reviewed the supporting accounting evidence.",
         )
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -190,3 +190,36 @@ def create_exception_decision(
         "decided_at": row[5],
         "status": exception_status,
     }
+
+@app.get("/close-runs")
+def list_close_runs() -> list[dict[str, Any]]:
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    close_run_id,
+                    journal_source,
+                    bank_source,
+                    imported_journal_line_count,
+                    imported_bank_transaction_count,
+                    total_exception_count,
+                    created_at
+                FROM close_runs
+                ORDER BY created_at DESC, close_run_id DESC
+                """
+            )
+            rows = cursor.fetchall()
+
+    return [
+        {
+            "close_run_id": row[0],
+            "journal_source": row[1],
+            "bank_source": row[2],
+            "imported_journal_line_count": row[3],
+            "imported_bank_transaction_count": row[4],
+            "total_exception_count": row[5],
+            "created_at": row[6],
+        }
+        for row in rows
+    ]
