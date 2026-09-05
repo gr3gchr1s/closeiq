@@ -121,6 +121,31 @@ class ApiTest(unittest.TestCase):
             + summary["resolved"]
             + summary["dismissed"],
         )
+    def test_decision_history_endpoint_returns_audit_trail(self):
+        create_response = self.client.post(
+            f"/exceptions/{self.test_exception_id}/decisions",
+            json={
+                "decision": "acknowledge",
+                "note": "Reviewed the supporting accounting evidence.",
+            },
+        )
+        self.assertEqual(create_response.status_code, 201)
 
+        response = self.client.get(
+            f"/exceptions/{self.test_exception_id}/decisions"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        decisions = response.json()
+        self.assertEqual(len(decisions), 1)
+
+        decision = decisions[0]
+        self.assertEqual(decision["exception_id"], self.test_exception_id)
+        self.assertEqual(decision["decision"], "acknowledge")
+        self.assertEqual(decision["reviewer"], "local-user")
+        self.assertEqual(
+            decision["note"],
+            "Reviewed the supporting accounting evidence.",
+        )
 if __name__ == "__main__":
     unittest.main()
