@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from typing import Any
@@ -35,10 +36,11 @@ def run_close(
     bank_transactions = load_bank_transactions(bank_file)
 
     close_review = build_close_review(journal_lines, bank_transactions)
-    upsert_close_exceptions(close_review["workflow_exceptions"])
+    workflow_exceptions = close_review["workflow_exceptions"]
+
+    upsert_close_exceptions(workflow_exceptions)
 
     close_run_id = str(uuid4())
-    total_exception_count = close_review["summary"]["total_exception_count"]
 
     with get_connection() as connection:
         with connection.cursor() as cursor:
@@ -62,8 +64,49 @@ def run_close(
                     str(bank_file),
                     imported_journal_line_count,
                     imported_bank_transaction_count,
-                    total_exception_count,
+                    close_review["summary"]["total_exception_count"],
                 ),
+            )
+
+            cursor.executemany(
+                """
+                INSERT INTO close_run_exceptions (
+                    close_run_id,
+                    exception_id,
+                    exception_type,
+                    severity,
+                    status,
+                    source_ids,
+                    evidence
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb)
+                """,
+                [
+                    (
+                        close_run_id,
+                        exception["exception_id"],
+                        exception["exception_type"],
+                        exception["severity"],
+                        exception["status"],
+                        exception["source_ids"],
+                        json.dumps(
+                            {
+                                key: value
+                                for key, value in exception.items()
+                                if key
+                                not in {
+                                    "exception_id",
+                                    "exception_type",
+                                    "severity",
+                                    "status",
+                                    "source_ids",
+                                }
+                            },
+                            default=str,
+                        ),
+                    )
+                    for exception in workflow_exceptions
+                ],
             )
 
     return {
