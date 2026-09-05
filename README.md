@@ -232,3 +232,13 @@ Stop the local application when finished:
 ```powershell
 docker compose down
 ```
+
+## Close-run history
+
+Every successful `run-close` execution creates an auditable close-run record in PostgreSQL. Each record includes a unique run ID, the source files used, imported-record counts, total exception count, and timestamp.
+
+Retrieve close-run history through the API:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/close-runs | ConvertTo-Json
+```
