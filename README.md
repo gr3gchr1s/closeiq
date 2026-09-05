@@ -140,6 +140,7 @@ Then open:
 | `GET`  | `/exceptions`                          | Returns open close exceptions                        |
 | `GET`  | `/close-summary`                       | Returns counts by workflow status                    |
 | `POST` | `/exceptions/{exception_id}/decisions` | Records an acknowledge, resolve, or dismiss decision |
+| `GET`  | `/exceptions/{exception_id}/decisions` | Returns the audit history for one exception |
 
 Example decision request:
 

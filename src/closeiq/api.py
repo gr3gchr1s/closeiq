@@ -88,6 +88,41 @@ def get_close_summary() -> dict[str, int]:
     summary["total"] = sum(summary.values())
     return summary
 
+@app.get("/exceptions/{exception_id}/decisions")
+def list_exception_decisions(
+    exception_id: str,
+) -> list[dict[str, Any]]:
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    decision_id,
+                    exception_id,
+                    decision,
+                    reviewer,
+                    note,
+                    decided_at
+                FROM exception_decisions
+                WHERE exception_id = %s
+                ORDER BY decided_at DESC, decision_id DESC
+                """,
+                (exception_id,),
+            )
+            rows = cursor.fetchall()
+
+    return [
+        {
+            "decision_id": row[0],
+            "exception_id": row[1],
+            "decision": row[2],
+            "reviewer": row[3],
+            "note": row[4],
+            "decided_at": row[5],
+        }
+        for row in rows
+    ]
+
 @app.post("/exceptions/{exception_id}/decisions", status_code=201)
 def create_exception_decision(
     exception_id: str,
