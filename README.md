@@ -197,3 +197,38 @@ Planned extensions include:
 * Exceptions carry IDs, severity, status, source records, and evidence.
 * Reviewer actions should be explicit and auditable.
 * Future AI tools should be read-only by default and cite the underlying accounting evidence.
+
+## Run the full application with Docker
+
+Start PostgreSQL and the CloseIQ API together:
+
+```powershell
+docker compose up --build -d
+```
+
+Verify both services are running:
+
+```powershell
+docker compose ps
+Invoke-RestMethod http://127.0.0.1:8000/health
+```
+
+Run the complete accounting-close workflow inside the API container:
+
+```powershell
+docker compose exec api python -m closeiq.cli run-close data/journal_entries.csv data/bank_transactions.csv
+```
+
+Review the close summary:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/close-summary | ConvertTo-Json
+```
+
+Open interactive API documentation at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
+
+Stop the local application when finished:
+
+```powershell
+docker compose down
+```
