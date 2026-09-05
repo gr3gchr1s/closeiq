@@ -10,6 +10,9 @@ from closeiq.api import app
 from closeiq.database import get_connection
 
 
+PROJECT_ROOT = Path(__file__).parents[1]
+
+
 class ApiTest(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
@@ -208,6 +211,66 @@ class ApiTest(unittest.TestCase):
             snapshot["evidence"]["reason"],
             "Journal entry is not balanced",
         )
+
+    def test_create_close_run_endpoint_imports_uploaded_csv_files(self):
+        journal_path = PROJECT_ROOT / "data" / "journal_entries.csv"
+        bank_path = PROJECT_ROOT / "data" / "bank_transactions.csv"
+
+        with (
+            journal_path.open("rb") as journal_file,
+            bank_path.open("rb") as bank_file,
+        ):
+            response = self.client.post(
+                "/close-runs",
+                data={"close_period": "2026-08"},
+                files={
+                    "journal_file": (
+                        "journal_entries.csv",
+                        journal_file,
+                        "text/csv",
+                    ),
+                    "bank_file": (
+                        "bank_transactions.csv",
+                        bank_file,
+                        "text/csv",
+                    ),
+                },
+            )
+
+        self.assertEqual(response.status_code, 201)
+        result = response.json()
+        close_run_id = result["close_run_id"]
+
+        try:
+            self.assertEqual(result["close_period"], "2026-08")
+            self.assertEqual(result["journal_source"], "journal_entries.csv")
+            self.assertEqual(result["bank_source"], "bank_transactions.csv")
+            self.assertEqual(result["imported_journal_line_count"], 9)
+            self.assertEqual(
+                result["imported_bank_transaction_count"],
+                4,
+            )
+            self.assertEqual(
+                result["close_review"]["summary"]["total_exception_count"],
+                4,
+            )
+        finally:
+            with get_connection() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        DELETE FROM close_run_exceptions
+                        WHERE close_run_id = %s
+                        """,
+                        (close_run_id,),
+                    )
+                    cursor.execute(
+                        """
+                        DELETE FROM close_runs
+                        WHERE close_run_id = %s
+                        """,
+                        (close_run_id,),
+                    )
 
     def test_decision_endpoint_acknowledges_exception(self):
         response = self.client.post(

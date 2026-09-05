@@ -23,6 +23,8 @@ def run_close(
     bank_file: str | Path,
     *,
     close_period: str,
+    journal_source: str | None = None,
+    bank_source: str | None = None,
 ) -> dict[str, Any]:
     if not re.fullmatch(CLOSE_PERIOD_PATTERN, close_period):
         raise ValueError(
@@ -60,8 +62,8 @@ def run_close(
                 (
                     close_run_id,
                     close_period,
-                    str(journal_file),
-                    str(bank_file),
+                    journal_source or str(journal_file),
+                    bank_source or str(bank_file),
                     imported_journal_line_count,
                     imported_bank_transaction_count,
                     close_review["summary"]["total_exception_count"],
@@ -112,6 +114,8 @@ def run_close(
     return {
         "close_run_id": close_run_id,
         "close_period": close_period,
+        "journal_source": journal_source or str(journal_file),
+        "bank_source": bank_source or str(bank_file),
         "imported_journal_line_count": imported_journal_line_count,
         "imported_bank_transaction_count": imported_bank_transaction_count,
         "close_review": close_review,
