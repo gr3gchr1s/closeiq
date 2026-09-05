@@ -44,7 +44,9 @@ CREATE TABLE bank_transactions (
 CREATE TABLE close_exceptions (
     exception_id TEXT PRIMARY KEY,
     exception_type TEXT NOT NULL,
-    severity TEXT NOT NULL CHECK (severity IN ('low', 'medium', 'high')),
+    severity TEXT NOT NULL CHECK (
+        severity IN ('low', 'medium', 'high')
+    ),
     status TEXT NOT NULL DEFAULT 'open' CHECK (
         status IN ('open', 'reviewed', 'resolved', 'dismissed')
     ),
@@ -66,7 +68,7 @@ CREATE TABLE exception_decisions (
 
 CREATE TABLE close_runs (
     close_run_id TEXT PRIMARY KEY,
-        close_period TEXT NOT NULL CHECK (
+    close_period TEXT NOT NULL CHECK (
         close_period ~ '^\d{4}-(0[1-9]|1[0-2])$'
     ),
     journal_source TEXT NOT NULL,
@@ -77,11 +79,30 @@ CREATE TABLE close_runs (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE close_run_exceptions (
+    close_run_id TEXT NOT NULL REFERENCES close_runs(close_run_id),
+    exception_id TEXT NOT NULL,
+    exception_type TEXT NOT NULL,
+    severity TEXT NOT NULL CHECK (
+        severity IN ('low', 'medium', 'high')
+    ),
+    status TEXT NOT NULL CHECK (
+        status IN ('open', 'reviewed', 'resolved', 'dismissed')
+    ),
+    source_ids TEXT[] NOT NULL,
+    evidence JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (close_run_id, exception_id)
+);
+
 CREATE INDEX close_runs_created_at_idx
     ON close_runs(created_at DESC);
 
 CREATE INDEX close_runs_close_period_created_at_idx
     ON close_runs(close_period, created_at DESC);
+
+CREATE INDEX close_run_exceptions_close_run_id_idx
+    ON close_run_exceptions(close_run_id);
 
 CREATE INDEX journal_lines_external_reference_idx
     ON journal_lines(external_reference);

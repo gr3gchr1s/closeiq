@@ -62,6 +62,7 @@ def list_open_exceptions() -> list[dict[str, Any]]:
         for row in rows
     ]
 
+
 @app.get("/close-summary")
 def get_close_summary() -> dict[str, int]:
     summary = {
@@ -87,6 +88,7 @@ def get_close_summary() -> dict[str, int]:
 
     summary["total"] = sum(summary.values())
     return summary
+
 
 @app.get("/exceptions/{exception_id}/decisions")
 def list_exception_decisions(
@@ -122,6 +124,7 @@ def list_exception_decisions(
         }
         for row in rows
     ]
+
 
 @app.post("/exceptions/{exception_id}/decisions", status_code=201)
 def create_exception_decision(
@@ -191,6 +194,7 @@ def create_exception_decision(
         "status": exception_status,
     }
 
+
 @app.get("/close-runs")
 def list_close_runs() -> list[dict[str, Any]]:
     with get_connection() as connection:
@@ -222,6 +226,58 @@ def list_close_runs() -> list[dict[str, Any]]:
             "imported_bank_transaction_count": row[5],
             "total_exception_count": row[6],
             "created_at": row[7],
+        }
+        for row in rows
+    ]
+
+
+@app.get("/close-runs/{close_run_id}/exceptions")
+def list_close_run_exceptions(
+    close_run_id: str,
+) -> list[dict[str, Any]]:
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT 1
+                FROM close_runs
+                WHERE close_run_id = %s
+                """,
+                (close_run_id,),
+            )
+            if cursor.fetchone() is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Close run not found",
+                )
+
+            cursor.execute(
+                """
+                SELECT
+                    exception_id,
+                    exception_type,
+                    severity,
+                    status,
+                    source_ids,
+                    evidence,
+                    created_at
+                FROM close_run_exceptions
+                WHERE close_run_id = %s
+                ORDER BY exception_id
+                """,
+                (close_run_id,),
+            )
+            rows = cursor.fetchall()
+
+    return [
+        {
+            "exception_id": row[0],
+            "exception_type": row[1],
+            "severity": row[2],
+            "status": row[3],
+            "source_ids": row[4],
+            "evidence": row[5],
+            "created_at": row[6],
         }
         for row in rows
     ]

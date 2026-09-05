@@ -15,6 +15,7 @@ class ApiTest(unittest.TestCase):
         self.client = TestClient(app)
         self.test_exception_id = "api-test:decision-workflow"
         self.test_close_run_id = "api-test:close-run-history"
+        self.test_close_run_exception_id = "api-test:run-snapshot"
 
         with get_connection() as connection:
             with connection.cursor() as cursor:
@@ -80,6 +81,36 @@ class ApiTest(unittest.TestCase):
                         4,
                     ),
                 )
+                cursor.execute(
+                    """
+                    INSERT INTO close_run_exceptions (
+                        close_run_id,
+                        exception_id,
+                        exception_type,
+                        severity,
+                        status,
+                        source_ids,
+                        evidence
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb)
+                    ON CONFLICT (close_run_id, exception_id) DO UPDATE
+                    SET
+                        exception_type = EXCLUDED.exception_type,
+                        severity = EXCLUDED.severity,
+                        status = EXCLUDED.status,
+                        source_ids = EXCLUDED.source_ids,
+                        evidence = EXCLUDED.evidence
+                    """,
+                    (
+                        self.test_close_run_id,
+                        self.test_close_run_exception_id,
+                        "journal_balance",
+                        "high",
+                        "open",
+                        ["JE-1004"],
+                        '{"reason": "Journal entry is not balanced"}',
+                    ),
+                )
 
     def tearDown(self):
         with get_connection() as connection:
@@ -90,6 +121,13 @@ class ApiTest(unittest.TestCase):
                     WHERE exception_id = %s
                     """,
                     (self.test_exception_id,),
+                )
+                cursor.execute(
+                    """
+                    DELETE FROM close_run_exceptions
+                    WHERE close_run_id = %s
+                    """,
+                    (self.test_close_run_id,),
                 )
                 cursor.execute(
                     """
@@ -146,6 +184,30 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(close_run["imported_bank_transaction_count"], 4)
         self.assertEqual(close_run["total_exception_count"], 4)
         self.assertIn("created_at", close_run)
+
+    def test_close_run_exceptions_endpoint_returns_snapshots(self):
+        response = self.client.get(
+            f"/close-runs/{self.test_close_run_id}/exceptions"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        snapshots = response.json()
+
+        self.assertEqual(len(snapshots), 1)
+
+        snapshot = snapshots[0]
+        self.assertEqual(
+            snapshot["exception_id"],
+            self.test_close_run_exception_id,
+        )
+        self.assertEqual(snapshot["exception_type"], "journal_balance")
+        self.assertEqual(snapshot["severity"], "high")
+        self.assertEqual(snapshot["status"], "open")
+        self.assertEqual(snapshot["source_ids"], ["JE-1004"])
+        self.assertEqual(
+            snapshot["evidence"]["reason"],
+            "Journal entry is not balanced",
+        )
 
     def test_decision_endpoint_acknowledges_exception(self):
         response = self.client.post(
