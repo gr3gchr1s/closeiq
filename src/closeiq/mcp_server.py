@@ -56,3 +56,49 @@ def list_open_exceptions() -> dict[str, list[dict[str, Any]]]:
             ) in rows
         ]
     }
+
+
+@mcp.tool()
+def exception_decision_history(
+    exception_id: str,
+) -> dict[str, list[dict[str, Any]]]:
+    """Return the read-only reviewer decision history for one exception."""
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    decision_id,
+                    exception_id,
+                    decision,
+                    reviewer,
+                    note,
+                    decided_at
+                FROM exception_decisions
+                WHERE exception_id = %s
+                ORDER BY decided_at, decision_id
+                """,
+                (exception_id,),
+            )
+            rows = cursor.fetchall()
+
+    return {
+        "decisions": [
+            {
+                "decision_id": decision_id,
+                "exception_id": decision_exception_id,
+                "decision": decision,
+                "reviewer": reviewer,
+                "note": note,
+                "decided_at": decided_at.isoformat(),
+            }
+            for (
+                decision_id,
+                decision_exception_id,
+                decision,
+                reviewer,
+                note,
+                decided_at,
+            ) in rows
+        ]
+    }
