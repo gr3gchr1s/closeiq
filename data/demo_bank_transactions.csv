@@ -1,0 +1,10 @@
+transaction_id,date,description,amount,external_reference
+BT-8101,2026-08-02,Client payment,1200.00,DEP-8101
+BT-8102,2026-08-05,Software subscription,-85.00,ACH-8102
+BT-8103,2026-08-08,Office supplies,-44.00,ACH-8103
+BT-8104,2026-08-19,Unrecorded bank fee,-12.00,FEE-0819
+BT-8105,2026-08-24,Monthly bank service charge,-12.00,FEE-0820
+BT-8106,2026-08-25,Office supplies restock,-60.00,ACH-8105
+BT-8107,2026-08-27,Equipment purchase,-250.00,ACH-8106
+BT-8108,2026-08-29,Client payment,900.00,DEP-8107
+BT-8109,2026-08-30,Bank charge missing reference,-7.50,

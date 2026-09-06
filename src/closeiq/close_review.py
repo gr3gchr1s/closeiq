@@ -65,11 +65,20 @@ def build_close_review(
 
     for exception in bank_reconciliation_exceptions:
         bank_transaction_id = exception["bank_transaction_id"]
+        is_missing_reference = (
+            exception["reason"]
+            == "Bank transaction is missing an external reference"
+        )
+
         workflow_exceptions.append(
             build_workflow_exception(
                 exception_id=f"bank-reconciliation:{bank_transaction_id}",
-                exception_type="bank_reconciliation",
-                severity="medium",
+                exception_type=(
+                    "missing_bank_reference"
+                    if is_missing_reference
+                    else "bank_reconciliation"
+                ),
+                severity="low" if is_missing_reference else "medium",
                 source_ids=[bank_transaction_id],
                 details=exception,
             )
