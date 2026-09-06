@@ -261,3 +261,9 @@ Potential extensions include:
 * Reviewer actions are explicit and auditable.
 * Close runs are period-aware and reproducible.
 * AI tools are read-only by default and should cite underlying accounting evidence.
+
+### Live interactive dashboard
+
+[Open the CloseIQ Month-End Close Review dashboard](https://app.powerbi.com/view?r=eyJrIjoiNWNjZDlmMDEtMTBlZS00OWM5LTg4OTgtMDA3NGVkMzY4MTY2IiwidCI6IjFiMGQwMmRiLWZjOWUtNDQ5NS05NTM3LTFkMzc5Y2NhMmFlNyIsImMiOjZ9&embedImagePlaceholder=true)
+
+> Uses synthetic accounting-close data only.
