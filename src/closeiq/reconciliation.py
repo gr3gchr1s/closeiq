@@ -35,18 +35,38 @@ def cash_amount(line: JournalLine) -> Decimal:
     return line.debit - line.credit
 
 
-def reconcile(lines: list[JournalLine], bank_transactions: list[BankTransaction]) -> list[dict[str, str]]:
+def reconcile(
+    lines: list[JournalLine],
+    bank_transactions: list[BankTransaction],
+) -> list[dict[str, str]]:
     cash_lines = [line for line in lines if line.account_code == "1000"]
     unmatched = []
+
     for transaction in bank_transactions:
+        if not transaction.external_reference.strip():
+            unmatched.append(
+                {
+                    "bank_transaction_id": transaction.transaction_id,
+                    "reason": "Bank transaction is missing an external reference",
+                    "amount": f"{transaction.amount:.2f}",
+                    "external_reference": transaction.external_reference,
+                }
+            )
+            continue
+
         matches = [
             line
             for line in cash_lines
             if line.external_reference == transaction.external_reference
             and cash_amount(line) == transaction.amount
         ]
+
         if len(matches) != 1:
-            reason = "No matching cash ledger line" if not matches else "Multiple matching cash ledger lines"
+            reason = (
+                "No matching cash ledger line"
+                if not matches
+                else "Multiple matching cash ledger lines"
+            )
             unmatched.append(
                 {
                     "bank_transaction_id": transaction.transaction_id,
@@ -55,4 +75,5 @@ def reconcile(lines: list[JournalLine], bank_transactions: list[BankTransaction]
                     "external_reference": transaction.external_reference,
                 }
             )
+
     return unmatched
