@@ -57,23 +57,17 @@ flowchart LR
 
 ## Quick start with Docker
 
-Create a local `.env` file from the template:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Set a private local password in `.env`:
-
-```text
-POSTGRES_PASSWORD=your_local_password_here
-```
-
-Start PostgreSQL and the API:
+Start PostgreSQL and the API. The chart of accounts is seeded automatically on
+startup, so no manual setup step is required:
 
 ```powershell
 docker compose up --build -d
 ```
+
+> By default this uses a fixed local-dev database password so there's nothing
+> else to configure. If you want your own password, copy `.env.example` to
+> `.env` and set `POSTGRES_PASSWORD` before running `docker compose up` — it
+> overrides the default automatically.
 
 Verify that both services are running:
 
@@ -83,13 +77,14 @@ docker compose ps
 Invoke-RestMethod http://127.0.0.1:8000/health
 ```
 
-Load the chart of accounts:
+Run the full demo close (seeds accounts if needed and processes the bundled
+sample data for period `2026-08`) in one command:
 
 ```powershell
-docker compose exec api python -c "from closeiq.seed_accounts import seed_accounts; print(seed_accounts('data/chart_of_accounts.csv'))"
+docker compose exec api python -m closeiq.cli demo
 ```
 
-Run the full close workflow for an accounting period:
+To run a close for your own data or period instead, use `run-close` directly:
 
 ```powershell
 docker compose exec api python -m closeiq.cli run-close --period 2026-08 data/journal_entries.csv data/bank_transactions.csv
@@ -138,9 +133,19 @@ Set the local source path before running application modules:
 $env:PYTHONPATH = "$PWD\src"
 ```
 
-Run the close workflow locally:
+Run the demo close (seeds the chart of accounts and processes the bundled
+sample data for period `2026-08`) in one command:
 
 ```powershell
+.\.venv\Scripts\python.exe -m closeiq.cli demo
+```
+
+To run a close for your own data or period, seed the chart of accounts once
+and then use `run-close` directly:
+
+```powershell
+.\.venv\Scripts\python.exe -c "from closeiq.seed_accounts import seed_accounts; seed_accounts('data/chart_of_accounts.csv')"
+
 .\.venv\Scripts\python.exe -m closeiq.cli run-close --period 2026-08 data/journal_entries.csv data/bank_transactions.csv
 ```
 

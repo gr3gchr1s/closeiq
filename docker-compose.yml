@@ -5,7 +5,9 @@ services:
     environment:
       POSTGRES_DB: closeiq
       POSTGRES_USER: closeiq_app
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Falls back to a fixed local-dev password when no .env is present.
+      # Override in .env for anything beyond a throwaway local demo.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-closeiq_dev_password}
     ports:
       - "5432:5432"
     volumes:
@@ -25,7 +27,7 @@ services:
       POSTGRES_PORT: "5432"
       POSTGRES_DB: closeiq
       POSTGRES_USER: closeiq_app
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-closeiq_dev_password}
     ports:
       - "8000:8000"
     depends_on:
