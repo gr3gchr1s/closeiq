@@ -11,6 +11,13 @@ from .accounting import (
 from .close_review import build_close_review
 from .close_run import run_close
 from .reconciliation import load_bank_transactions, reconcile
+from .seed_accounts import seed_accounts
+
+
+DEMO_CHART_OF_ACCOUNTS_FILE = "data/chart_of_accounts.csv"
+DEMO_JOURNAL_FILE = "data/journal_entries.csv"
+DEMO_BANK_FILE = "data/bank_transactions.csv"
+DEMO_CLOSE_PERIOD = "2026-08"
 
 
 def main() -> None:
@@ -40,7 +47,29 @@ def main() -> None:
     run_close_command.add_argument("journal_file")
     run_close_command.add_argument("bank_file")
 
+    commands.add_parser(
+        "demo",
+        help=(
+            "Seed the chart of accounts and run the close workflow "
+            "against the bundled sample data in one step"
+        ),
+    )
+
     args = parser.parse_args()
+
+    if args.command == "demo":
+        seed_accounts(DEMO_CHART_OF_ACCOUNTS_FILE)
+        print(
+            json.dumps(
+                run_close(
+                    DEMO_JOURNAL_FILE,
+                    DEMO_BANK_FILE,
+                    close_period=DEMO_CLOSE_PERIOD,
+                ),
+                indent=2,
+            )
+        )
+        return
 
     lines = load_journal_lines(args.journal_file)
 
