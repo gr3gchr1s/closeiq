@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CloseIQ — Close Review</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body data-page="jobs">
+  <noscript>CloseIQ requires JavaScript to show close review results.</noscript>
+
+  <main class="page">
+    <header class="page-header">
+      <h1>CloseIQ</h1>
+      <p class="subtitle">Close review status and results.</p>
+    </header>
+
+    <section id="processing-section" class="panel">
+      <h2 class="panel-title">Running your close review</h2>
+      <p id="processing-message" class="status-text">Waiting to start&hellip;</p>
+    </section>
+
+    <section id="failed-section" class="panel" hidden>
+      <h2 class="panel-title">This close review failed</h2>
+      <p id="failed-message" class="status-text status-text-error"></p>
+      <a class="secondary-link" href="/">Upload new files</a>
+    </section>
+
+    <section id="not-found-section" class="panel" hidden>
+      <h2 class="panel-title">Close review not found</h2>
+      <p class="status-text">
+        We couldn&rsquo;t find a close review at this link.
+      </p>
+      <a class="secondary-link" href="/">Upload new files</a>
+    </section>
+
+    <section id="results-section" class="panel" hidden>
+      <h2 class="panel-title">Close review results</h2>
+      <p class="status-text">
+        Close period: <span id="period-value"></span>
+      </p>
+
+      <div id="summary-cards" class="summary-cards"></div>
+
+      <h3 class="section-subtitle">Open exceptions</h3>
+      <table class="exceptions-table">
+        <thead>
+          <tr>
+            <th scope="col">Exception ID</th>
+            <th scope="col">Type</th>
+            <th scope="col">Severity</th>
+            <th scope="col">Source IDs</th>
+            <th scope="col">Reason</th>
+            <th scope="col">Amount</th>
+          </tr>
+        </thead>
+        <tbody id="exceptions-body"></tbody>
+      </table>
+
+      <a class="secondary-link" href="/">Start another review</a>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

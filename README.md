@@ -77,6 +77,12 @@ docker compose ps
 Invoke-RestMethod http://127.0.0.1:8000/health
 ```
 
+Open `http://127.0.0.1:8000/` in a browser to upload a journal and bank CSV
+and run a close review without the CLI — the page uploads the files, waits
+for the job to finish, and shows the resulting summary and open exceptions.
+The interactive API documentation remains available at
+`http://127.0.0.1:8000/docs`.
+
 Run the full demo close (seeds accounts if needed and processes the bundled
 sample data for period `2026-08`) in one command:
 
@@ -167,14 +173,27 @@ Open the interactive API documentation at http://127.0.0.1:8000/docs.
 
 ## API endpoints
 
-| Method | Endpoint                               | Purpose                                              |
-| ------ | -------------------------------------- | ---------------------------------------------------- |
-| `GET`  | `/health`                              | Confirms the API is running                          |
-| `GET`  | `/exceptions`                          | Returns open close exceptions                        |
-| `GET`  | `/close-summary`                       | Returns counts by workflow status                    |
-| `GET`  | `/close-runs`                          | Returns auditable close-run history                  |
-| `POST` | `/exceptions/{exception_id}/decisions` | Records an acknowledge, resolve, or dismiss decision |
-| `GET`  | `/exceptions/{exception_id}/decisions` | Returns the decision audit history for one exception |
+| Method | Endpoint                                                            | Purpose                                              |
+| ------ | -------------------------------------------------------------------- | ---------------------------------------------------- |
+| `GET`  | `/health`                                                             | Confirms the API is running                          |
+| `GET`  | `/exceptions`                                                         | **Legacy, single-run default.** Open exceptions for the most recently created close run only |
+| `GET`  | `/close-summary`                                                      | **Legacy, single-run default.** Status counts for the most recently created close run only |
+| `GET`  | `/close-runs`                                                         | Returns auditable close-run history                  |
+| `GET`  | `/close-runs/{close_run_id}/exceptions`                               | Returns that run's open exceptions only              |
+| `GET`  | `/close-runs/{close_run_id}/close-summary`                            | Returns that run's status counts (open/reviewed/resolved/dismissed/total) |
+| `POST` | `/close-runs/{close_run_id}/exceptions/{exception_id}/decisions`      | Records an acknowledge, resolve, or dismiss decision against one run's exception |
+| `GET`  | `/close-runs/{close_run_id}/exceptions/{exception_id}/decisions`      | Returns the decision audit history for one run's exception |
+
+Exceptions are scoped to the close run that detected them: the same
+exception can be `open` in one run and `resolved` in another, so decisions
+are always recorded against a specific `(close_run_id, exception_id)`
+pair, never a bare `exception_id`. For the same reason, `/exceptions` and
+`/close-summary` never aggregate across every historical run — that
+count would only grow more ambiguous as more runs accumulate. They
+default to whichever close run was created most recently and return
+empty/all-zero results if no close run has completed yet; pass an
+explicit `close_run_id` via the endpoints above to look at any other run,
+including one that isn't the latest.
 
 Example decision request:
 

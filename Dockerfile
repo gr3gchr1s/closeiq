@@ -16,5 +16,6 @@ RUN pip install --no-cache-dir \
 
 COPY src ./src
 COPY data ./data
+COPY static ./static
 
 CMD ["sh", "-c", "python -c \"from closeiq.seed_accounts import seed_accounts; seed_accounts('data/chart_of_accounts.csv')\" && python -m uvicorn closeiq.api:app --host 0.0.0.0 --port 8000"]
