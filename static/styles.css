@@ -1,0 +1,275 @@
+:root {
+  --color-bg: #f5f6f8;
+  --color-surface: #ffffff;
+  --color-border: #d9dce1;
+  --color-text: #1f2430;
+  --color-muted: #5b6270;
+  --color-primary: #1f4fd6;
+  --color-primary-hover: #1a3fb0;
+  --color-error-bg: #fdecec;
+  --color-error-border: #e6a3a3;
+  --color-error-text: #9c2626;
+  --color-info-bg: #eef3ff;
+  --color-info-border: #b9c9f2;
+  --color-info-text: #1f3d8f;
+  --color-severity-high: #b23b3b;
+  --color-severity-medium: #b2792f;
+  --color-severity-low: #4c7a3f;
+  --radius: 8px;
+  --spacing: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  color: var(--color-text);
+  background: var(--color-bg);
+  line-height: 1.5;
+}
+
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 16px 64px;
+}
+
+.page-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.page-header h1 {
+  margin: 0 0 4px;
+  font-size: 1.75rem;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: var(--spacing);
+}
+
+.panel-title {
+  margin: 0 0 16px;
+  font-size: 1.1rem;
+}
+
+.section-subtitle {
+  margin: 24px 0 8px;
+  font-size: 1rem;
+}
+
+.field {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Higher specificity than .field alone (0,0,2,0 vs 0,0,1,0), so a
+   hidden field stays hidden instead of the attribute selector losing to
+   .field's display:flex. app.js removes the `hidden` attribute itself
+   to reveal the close-period picker after a period_ambiguous response. */
+.field[hidden] {
+  display: none;
+}
+
+.field label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+input[type="file"],
+select {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font: inherit;
+  background: var(--color-surface);
+  color: var(--color-text);
+  max-width: 100%;
+}
+
+.primary-button {
+  border: none;
+  border-radius: var(--radius);
+  background: var(--color-primary);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  padding: 10px 20px;
+  cursor: pointer;
+}
+
+.primary-button:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.primary-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.status {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+}
+
+.status p {
+  margin: 0;
+}
+
+.status-error {
+  background: var(--color-error-bg);
+  border-color: var(--color-error-border);
+  color: var(--color-error-text);
+}
+
+.status-info {
+  background: var(--color-info-bg);
+  border-color: var(--color-info-border);
+  color: var(--color-info-text);
+}
+
+.status-text {
+  color: var(--color-muted);
+}
+
+.status-text-error {
+  color: var(--color-error-text);
+}
+
+.secondary-link {
+  display: inline-block;
+  margin-top: 16px;
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.secondary-link:hover {
+  text-decoration: underline;
+}
+
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.summary-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 12px;
+  text-align: center;
+  background: var(--color-bg);
+}
+
+.summary-card-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.summary-card-label {
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.exceptions-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 0.9rem;
+}
+
+.exceptions-table th,
+.exceptions-table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+  word-break: break-word;
+}
+
+.exceptions-table th {
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.severity-high {
+  color: var(--color-severity-high);
+  font-weight: 600;
+}
+
+.severity-medium {
+  color: var(--color-severity-medium);
+  font-weight: 600;
+}
+
+.severity-low {
+  color: var(--color-severity-low);
+  font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: 20px 12px 48px;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+
+  .exceptions-table,
+  .exceptions-table thead,
+  .exceptions-table tbody,
+  .exceptions-table th,
+  .exceptions-table td,
+  .exceptions-table tr {
+    display: block;
+  }
+
+  .exceptions-table thead {
+    display: none;
+  }
+
+  .exceptions-table tr {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    margin-bottom: 10px;
+    padding: 8px 10px;
+  }
+
+  .exceptions-table td {
+    border-bottom: none;
+    padding: 4px 0;
+  }
+
+  .exceptions-table td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+}

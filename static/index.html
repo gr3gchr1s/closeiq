@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CloseIQ</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body data-page="upload">
+  <noscript>CloseIQ requires JavaScript to run a close review.</noscript>
+
+  <main class="page">
+    <header class="page-header">
+      <h1>CloseIQ</h1>
+      <p class="subtitle">
+        Upload your journal entries and bank transactions to run a close
+        review.
+      </p>
+    </header>
+
+    <section class="panel" aria-labelledby="upload-heading">
+      <h2 id="upload-heading" class="panel-title">Run a close review</h2>
+
+      <form id="upload-form">
+        <div class="field">
+          <label for="journal-file">Journal entries (CSV)</label>
+          <input
+            type="file"
+            id="journal-file"
+            name="journal_file"
+            accept=".csv"
+            required
+          />
+        </div>
+
+        <div class="field">
+          <label for="bank-file">Bank transactions (CSV)</label>
+          <input
+            type="file"
+            id="bank-file"
+            name="bank_file"
+            accept=".csv"
+            required
+          />
+        </div>
+
+        <div id="period-section" class="field" hidden>
+          <label for="period-select">Close period</label>
+          <select id="period-select" name="close_period"></select>
+        </div>
+
+        <button type="submit" id="submit-button" class="primary-button">
+          Run Close Review
+        </button>
+      </form>
+
+      <div id="status-area" class="status" role="status" hidden>
+        <p id="status-message"></p>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

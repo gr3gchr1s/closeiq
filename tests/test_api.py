@@ -1,4 +1,5 @@
 import sys
+import time
 import unittest
 from pathlib import Path
 
@@ -7,6 +8,7 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
 from closeiq.api import app
+from closeiq.close_jobs import create_close_job
 from closeiq.database import get_connection
 
 
@@ -16,40 +18,21 @@ PROJECT_ROOT = Path(__file__).parents[1]
 class ApiTest(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
-        self.test_exception_id = "api-test:decision-workflow"
         self.test_close_run_id = "api-test:close-run-history"
         self.test_close_run_exception_id = "api-test:run-snapshot"
+        # close_runs.import_batch_id references close_jobs(job_id), and
+        # exception_decisions now references close_run_exceptions via
+        # (close_run_id, exception_id) rather than a global exception_id
+        # (see docs/closeiq_v2_architecture.md, section 3), so a real job
+        # and a close_run_exceptions row are set up directly.
+        self.test_job_id = create_close_job(
+            "2026-08",
+            journal_source="test-journal.csv",
+            bank_source="test-bank.csv",
+        )
 
         with get_connection() as connection:
             with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    INSERT INTO close_exceptions (
-                        exception_id,
-                        exception_type,
-                        severity,
-                        status,
-                        source_ids,
-                        evidence
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s::jsonb)
-                    ON CONFLICT (exception_id) DO UPDATE
-                    SET
-                        exception_type = EXCLUDED.exception_type,
-                        severity = EXCLUDED.severity,
-                        status = EXCLUDED.status,
-                        source_ids = EXCLUDED.source_ids,
-                        evidence = EXCLUDED.evidence
-                    """,
-                    (
-                        self.test_exception_id,
-                        "test_exception",
-                        "low",
-                        "open",
-                        ["api-test-source"],
-                        "{}",
-                    ),
-                )
                 cursor.execute(
                     """
                     INSERT INTO close_runs (
@@ -59,9 +42,10 @@ class ApiTest(unittest.TestCase):
                         bank_source,
                         imported_journal_line_count,
                         imported_bank_transaction_count,
-                        total_exception_count
+                        total_exception_count,
+                        import_batch_id
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (close_run_id) DO UPDATE
                     SET
                         close_period = EXCLUDED.close_period,
@@ -72,7 +56,8 @@ class ApiTest(unittest.TestCase):
                         imported_bank_transaction_count =
                             EXCLUDED.imported_bank_transaction_count,
                         total_exception_count =
-                            EXCLUDED.total_exception_count
+                            EXCLUDED.total_exception_count,
+                        import_batch_id = EXCLUDED.import_batch_id
                     """,
                     (
                         self.test_close_run_id,
@@ -82,6 +67,7 @@ class ApiTest(unittest.TestCase):
                         9,
                         4,
                         4,
+                        self.test_job_id,
                     ),
                 )
                 cursor.execute(
@@ -121,9 +107,9 @@ class ApiTest(unittest.TestCase):
                 cursor.execute(
                     """
                     DELETE FROM exception_decisions
-                    WHERE exception_id = %s
+                    WHERE close_run_id = %s
                     """,
-                    (self.test_exception_id,),
+                    (self.test_close_run_id,),
                 )
                 cursor.execute(
                     """
@@ -132,12 +118,15 @@ class ApiTest(unittest.TestCase):
                     """,
                     (self.test_close_run_id,),
                 )
+                # close_jobs.close_run_id and close_runs.import_batch_id
+                # reference each other, so the cycle must be broken before
+                # either row can be deleted.
                 cursor.execute(
                     """
-                    DELETE FROM close_exceptions
-                    WHERE exception_id = %s
+                    UPDATE close_jobs SET close_run_id = NULL
+                    WHERE job_id = %s
                     """,
-                    (self.test_exception_id,),
+                    (self.test_job_id,),
                 )
                 cursor.execute(
                     """
@@ -145,6 +134,13 @@ class ApiTest(unittest.TestCase):
                     WHERE close_run_id = %s
                     """,
                     (self.test_close_run_id,),
+                )
+                cursor.execute(
+                    """
+                    DELETE FROM close_jobs
+                    WHERE job_id = %s
+                    """,
+                    (self.test_job_id,),
                 )
 
     def test_health_endpoint_returns_ok(self):
@@ -162,10 +158,19 @@ class ApiTest(unittest.TestCase):
 
         for exception in exceptions:
             self.assertEqual(exception["status"], "open")
+            self.assertIn("close_run_id", exception)
             self.assertIn("exception_id", exception)
             self.assertIn("exception_type", exception)
             self.assertIn("severity", exception)
             self.assertIn("source_ids", exception)
+
+        matching = [
+            exception
+            for exception in exceptions
+            if exception["close_run_id"] == self.test_close_run_id
+            and exception["exception_id"] == self.test_close_run_exception_id
+        ]
+        self.assertEqual(len(matching), 1)
 
     def test_close_runs_endpoint_returns_history(self):
         response = self.client.get("/close-runs")
@@ -213,6 +218,11 @@ class ApiTest(unittest.TestCase):
         )
 
     def test_create_close_run_endpoint_imports_uploaded_csv_files(self):
+        # POST /close-runs is asynchronous (see docs/phase_1b_spec.md,
+        # section 2): it returns 202 + job_id immediately, and the actual
+        # import/controls/close-run persistence happens in a background
+        # task. Poll GET /close-jobs/{job_id} for completion instead of
+        # expecting the full result inline.
         journal_path = PROJECT_ROOT / "data" / "journal_entries.csv"
         bank_path = PROJECT_ROOT / "data" / "bank_transactions.csv"
 
@@ -237,26 +247,48 @@ class ApiTest(unittest.TestCase):
                 },
             )
 
-        self.assertEqual(response.status_code, 201)
-        result = response.json()
-        close_run_id = result["close_run_id"]
+        self.assertEqual(response.status_code, 202)
+        created = response.json()
+        self.assertEqual(set(created), {"job_id", "status"})
+        self.assertEqual(created["status"], "queued")
+        job_id = created["job_id"]
+
+        job = None
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            job = self.client.get(f"/close-jobs/{job_id}").json()
+            if job["status"] in ("succeeded", "failed"):
+                break
+            time.sleep(0.02)
+
+        self.assertIsNotNone(job)
+        self.assertEqual(job["status"], "succeeded")
+        self.assertIsNotNone(job["close_run_id"])
+        close_run_id = job["close_run_id"]
 
         try:
-            self.assertEqual(result["close_period"], "2026-08")
-            self.assertEqual(result["journal_source"], "journal_entries.csv")
-            self.assertEqual(result["bank_source"], "bank_transactions.csv")
-            self.assertEqual(result["imported_journal_line_count"], 9)
-            self.assertEqual(
-                result["imported_bank_transaction_count"],
-                4,
-            )
-            self.assertEqual(
-                result["close_review"]["summary"]["total_exception_count"],
-                4,
-            )
+            self.assertEqual(job["close_period"], "2026-08")
+            self.assertEqual(job["journal_source"], "journal_entries.csv")
+            self.assertEqual(job["bank_source"], "bank_transactions.csv")
+
+            summary = self.client.get(
+                f"/close-runs/{close_run_id}/close-summary"
+            ).json()
+            self.assertEqual(summary["total"], 4)
         finally:
+            # This endpoint now creates its own close_jobs row and
+            # import-batch-scoped journal/bank rows (see
+            # docs/closeiq_v2_architecture.md, section 3), so cleanup
+            # covers the full batch, not just the close_run/snapshot rows.
             with get_connection() as connection:
                 with connection.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        DELETE FROM exception_decisions
+                        WHERE close_run_id = %s
+                        """,
+                        (close_run_id,),
+                    )
                     cursor.execute(
                         """
                         DELETE FROM close_run_exceptions
@@ -266,15 +298,39 @@ class ApiTest(unittest.TestCase):
                     )
                     cursor.execute(
                         """
+                        UPDATE close_jobs SET close_run_id = NULL
+                        WHERE job_id = %s
+                        """,
+                        (job_id,),
+                    )
+                    cursor.execute(
+                        """
                         DELETE FROM close_runs
                         WHERE close_run_id = %s
                         """,
                         (close_run_id,),
                     )
+                    cursor.execute(
+                        "DELETE FROM journal_lines WHERE import_batch_id = %s",
+                        (job_id,),
+                    )
+                    cursor.execute(
+                        "DELETE FROM journal_entries WHERE import_batch_id = %s",
+                        (job_id,),
+                    )
+                    cursor.execute(
+                        "DELETE FROM bank_transactions WHERE import_batch_id = %s",
+                        (job_id,),
+                    )
+                    cursor.execute(
+                        "DELETE FROM close_jobs WHERE job_id = %s",
+                        (job_id,),
+                    )
 
     def test_decision_endpoint_acknowledges_exception(self):
         response = self.client.post(
-            f"/exceptions/{self.test_exception_id}/decisions",
+            f"/close-runs/{self.test_close_run_id}"
+            f"/exceptions/{self.test_close_run_exception_id}/decisions",
             json={
                 "decision": "acknowledge",
                 "note": "Reviewed the supporting accounting evidence.",
@@ -283,13 +339,28 @@ class ApiTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 201)
         result = response.json()
-        self.assertEqual(result["exception_id"], self.test_exception_id)
+        self.assertEqual(result["close_run_id"], self.test_close_run_id)
+        self.assertEqual(
+            result["exception_id"], self.test_close_run_exception_id
+        )
         self.assertEqual(result["decision"], "acknowledge")
         self.assertEqual(result["status"], "reviewed")
         self.assertEqual(
             result["note"],
             "Reviewed the supporting accounting evidence.",
         )
+
+    def test_decision_endpoint_returns_404_for_unknown_run_exception(self):
+        response = self.client.post(
+            f"/close-runs/{self.test_close_run_id}"
+            f"/exceptions/does-not-exist/decisions",
+            json={
+                "decision": "acknowledge",
+                "note": "Should not be accepted.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 404)
 
     def test_close_summary_endpoint_returns_status_counts(self):
         response = self.client.get("/close-summary")
@@ -315,7 +386,8 @@ class ApiTest(unittest.TestCase):
 
     def test_decision_history_endpoint_returns_audit_trail(self):
         create_response = self.client.post(
-            f"/exceptions/{self.test_exception_id}/decisions",
+            f"/close-runs/{self.test_close_run_id}"
+            f"/exceptions/{self.test_close_run_exception_id}/decisions",
             json={
                 "decision": "acknowledge",
                 "note": "Reviewed the supporting accounting evidence.",
@@ -324,7 +396,8 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(create_response.status_code, 201)
 
         response = self.client.get(
-            f"/exceptions/{self.test_exception_id}/decisions"
+            f"/close-runs/{self.test_close_run_id}"
+            f"/exceptions/{self.test_close_run_exception_id}/decisions"
         )
 
         self.assertEqual(response.status_code, 200)
@@ -332,7 +405,10 @@ class ApiTest(unittest.TestCase):
         self.assertEqual(len(decisions), 1)
 
         decision = decisions[0]
-        self.assertEqual(decision["exception_id"], self.test_exception_id)
+        self.assertEqual(decision["close_run_id"], self.test_close_run_id)
+        self.assertEqual(
+            decision["exception_id"], self.test_close_run_exception_id
+        )
         self.assertEqual(decision["decision"], "acknowledge")
         self.assertEqual(decision["reviewer"], "local-user")
         self.assertEqual(
